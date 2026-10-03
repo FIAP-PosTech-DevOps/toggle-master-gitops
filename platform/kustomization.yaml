@@ -1,0 +1,6 @@
+# Recursos de plataforma, iguais nos 3 ambientes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - clustersecretstore-openbao.yaml

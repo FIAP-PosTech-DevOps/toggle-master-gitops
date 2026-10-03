@@ -1,0 +1,3 @@
+# Saída de `kubectl kustomize` usada para inspeção local.
+rendered/
+*.rendered.yaml

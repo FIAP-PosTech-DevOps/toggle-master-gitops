@@ -1,0 +1,69 @@
+# Migração do banco do targeting-service: aplica db/init.sql (idempotente) antes de
+# cada rollout.
+#
+# É um hook "Sync" do ArgoCD na onda 0: roda depois do ExternalSecret (onda
+# -1, que cria a DATABASE_URL) e antes do Deployment (onda 1). Se a migração
+# falhar, o sync para e a versão nova NÃO sobe — o banco nunca fica atrás do
+# código. Substitui o `deploy.sh --with-schema` da Fase 2.
+#
+# db/init.sql é cópia de targeting-service/db/init.sql: ao mudar o schema no
+# repositório do serviço, atualize aqui no mesmo PR de promoção.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: targeting-service-db-migration
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70  # usuário "postgres" da imagem alpine
+        runAsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: postgres
+          command: ["sh", "-c"]
+          args:
+            - psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /sql/init.sql
+          env:
+            - name: HOME
+              value: /tmp
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: targeting-service-secret
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: sql
+          configMap:
+            name: targeting-service-db-migration
+        - name: tmp
+          emptyDir: {}

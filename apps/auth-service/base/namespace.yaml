@@ -1,0 +1,14 @@
+# Um namespace por microsserviço (sugestão da correção da Fase 2): isola
+# RBAC, quotas e segredos de cada serviço.
+#
+# Pod Security Admission "restricted": o próprio Kubernetes recusa pods
+# que rodem como root, escalem privilégio ou não descartem capabilities.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: auth-service
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"

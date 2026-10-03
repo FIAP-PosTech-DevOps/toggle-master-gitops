@@ -1,0 +1,51 @@
+# Uma Application por microsserviço, geradas a partir das pastas
+# apps/*/overlays/develop. Adicionar um serviço novo = criar a pasta dele;
+# nenhum YAML do ArgoCD precisa mudar.
+#
+# Cada serviço é uma Application independente: o deploy do auth-service
+# não mexe no flag-service, e o rollback de um não afeta os outros.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: togglemaster-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/FIAP-PosTech-DevOps/toggle-master-gitops.git
+        revision: main
+        directories:
+          - path: apps/*/overlays/develop
+  template:
+    metadata:
+      # apps/<serviço>/overlays/develop -> segmento 1 = nome do serviço
+      name: '{{index .path.segments 1}}'
+      labels:
+        app.kubernetes.io/part-of: togglemaster
+        togglemaster/environment: develop
+    spec:
+      project: togglemaster
+      source:
+        repoURL: https://github.com/FIAP-PosTech-DevOps/toggle-master-gitops.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{index .path.segments 1}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          # Server-side apply: o diff considera os campos que o próprio
+          # cluster preenche (ex.: defaults do ExternalSecret) e evita
+          # OutOfSync falso.
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

@@ -1,0 +1,81 @@
+# analytics-service (Python, porta 8005).
+#
+# A imagem aparece só pelo nome lógico "analytics-service": o endereço no ECR e a tag
+# (vX.Y.Z-<sha>) vêm do overlay de cada ambiente — é essa linha que a CI
+# altera para fazer um deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  labels:
+    app: analytics-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  # Sem `replicas`: quem decide o número de pods é o KEDA (keda.yaml), de 0 a
+  # 10 conforme a fila. Um valor fixo aqui brigaria com ele.
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: analytics-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+    spec:
+      serviceAccountName: analytics-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: analytics-service
+          image: analytics-service
+          ports:
+            - containerPort: 8005
+              name: http
+          env:
+            - name: PORT
+              value: "8005"
+          envFrom:
+            - configMapRef:
+                name: analytics-service-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # readOnlyRootFilesystem exige um volume gravável para /tmp.
+        - name: tmp
+          emptyDir: {}

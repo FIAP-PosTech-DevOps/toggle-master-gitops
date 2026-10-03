@@ -1,0 +1,10 @@
+# Tudo o que o ArgoCD de staging gerencia. A Application raiz (criada pelo
+# Terraform em toggle-master-infra/terraform/cluster-addons/argocd.tf)
+# aponta para esta pasta.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - project.yaml
+  - platform.yaml
+  - services.yaml

@@ -1,0 +1,82 @@
+# flag-service (Python, porta 8002).
+#
+# A imagem aparece só pelo nome lógico "flag-service": o endereço no ECR e a tag
+# (vX.Y.Z-<sha>) vêm do overlay de cada ambiente — é essa linha que a CI
+# altera para fazer um deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flag-service
+  labels:
+    app: flag-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: flag-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: flag-service
+    spec:
+      serviceAccountName: flag-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: flag-service
+          image: flag-service
+          ports:
+            - containerPort: 8002
+              name: http
+          env:
+            - name: PORT
+              value: "8002"
+          envFrom:
+            - configMapRef:
+                name: flag-service-config
+            - secretRef:
+                name: flag-service-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 96Mi
+            limits:
+              cpu: 300m
+              memory: 192Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # readOnlyRootFilesystem exige um volume gravável para /tmp.
+        - name: tmp
+          emptyDir: {}

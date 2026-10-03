@@ -1,0 +1,28 @@
+# Base do evaluation-service: o que é igual em develop, staging e production.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: evaluation-service
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: togglemaster
+      app.kubernetes.io/name: evaluation-service
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - externalsecret.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+
+configMapGenerator:
+  # Configuração não sensível comum aos 3 ambientes. O que muda por ambiente
+  # (região, fila) entra no overlay com behavior: merge.
+  - name: evaluation-service-config
+    literals:
+      - FLAG_SERVICE_URL=http://flag-service.flag-service.svc.cluster.local:8002
+      - TARGETING_SERVICE_URL=http://targeting-service.targeting-service.svc.cluster.local:8003

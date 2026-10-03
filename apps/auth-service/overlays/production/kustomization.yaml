@@ -1,0 +1,25 @@
+# auth-service em production (us-east-1).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# A linha newTag é a "versão implantada" deste serviço neste ambiente.
+# Quem altera: a CI do auth-service (push em release/* -> develop; botões de
+# promoção -> staging e production). Rollback = git revert do commit que a
+# alterou.
+images:
+  - name: auth-service
+    newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/auth-service
+    newTag: v0.0.0
+
+patches:
+  # Produção com 2 réplicas: um pod pode cair (deploy, nó) sem indisponibilidade.
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: auth-service
+      spec:
+        replicas: 2

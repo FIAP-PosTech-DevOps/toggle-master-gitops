@@ -1,0 +1,75 @@
+# Migração do banco do auth-service: aplica db/init.sql (idempotente) antes de
+# cada rollout.
+# Também registra o hash da SERVICE_API_KEY do evaluation-service.
+#
+# É um hook "Sync" do ArgoCD na onda 0: roda depois do ExternalSecret (onda
+# -1, que cria a DATABASE_URL) e antes do Deployment (onda 1). Se a migração
+# falhar, o sync para e a versão nova NÃO sobe — o banco nunca fica atrás do
+# código. Substitui o `deploy.sh --with-schema` da Fase 2.
+#
+# db/init.sql é cópia de auth-service/db/init.sql: ao mudar o schema no
+# repositório do serviço, atualize aqui no mesmo PR de promoção.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: auth-service-db-migration
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70  # usuário "postgres" da imagem alpine
+        runAsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: postgres
+          command: ["sh", "-c"]
+          args:
+            - psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /sql/init.sql -v api_key="$SERVICE_API_KEY" -f /sql/seed-api-key.sql
+          env:
+            - name: HOME
+              value: /tmp
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: auth-service-secret
+                  key: DATABASE_URL
+            - name: SERVICE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: evaluation-service-api-key
+                  key: SERVICE_API_KEY
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: sql
+          configMap:
+            name: auth-service-db-migration
+        - name: tmp
+          emptyDir: {}

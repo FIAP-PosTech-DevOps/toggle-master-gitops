@@ -1,0 +1,36 @@
+# KEDA no analytics-service: escala pela PROFUNDIDADE DA FILA, não por CPU. A fila
+# pode acumular 500 mensagens com a CPU baixa; o HPA por CPU não veria.
+#
+# identityOwner: keda => quem consulta o SQS é o pod do operador do KEDA
+# (namespace keda), com a role IRSA togglemaster-<ambiente>-irsa-keda.
+# queueURL e awsRegion são definidos por ambiente, no overlay.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-trigger-auth-aws
+spec:
+  podIdentity:
+    provider: aws
+    identityOwner: keda
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: analytics-service
+spec:
+  scaleTargetRef:
+    name: analytics-service
+  # scale-to-zero: sem mensagem na fila, nenhum pod rodando.
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef:
+        name: keda-trigger-auth-aws
+      metadata:
+        queueURL: definido-no-overlay
+        awsRegion: definido-no-overlay
+        # 1 pod a cada 5 mensagens pendentes (50 mensagens => 10 pods).
+        queueLength: "5"

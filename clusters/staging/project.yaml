@@ -1,0 +1,33 @@
+# Projeto ArgoCD do ToggleMaster em staging: limita de onde as Applications
+# podem ler (só este repositório) e onde podem escrever (os namespaces dos
+# serviços e o do External Secrets, destino da Application "platform").
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: togglemaster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  description: ToggleMaster (staging)
+  sourceRepos:
+    - https://github.com/FIAP-PosTech-DevOps/toggle-master-gitops.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: auth-service
+    - server: https://kubernetes.default.svc
+      namespace: flag-service
+    - server: https://kubernetes.default.svc
+      namespace: targeting-service
+    - server: https://kubernetes.default.svc
+      namespace: evaluation-service
+    - server: https://kubernetes.default.svc
+      namespace: analytics-service
+    - server: https://kubernetes.default.svc
+      namespace: external-secrets
+  # Recursos de escopo de cluster que as Applications podem criar.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: external-secrets.io
+      kind: ClusterSecretStore

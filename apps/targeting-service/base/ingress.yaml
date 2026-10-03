@@ -1,0 +1,18 @@
+# Rotas públicas do targeting-service no ingress-nginx (NLB). Cada serviço declara
+# as suas no próprio namespace; o ingress-nginx junta todas no mesmo host.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: targeting-service
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /rules
+            pathType: Prefix
+            backend:
+              service:
+                name: targeting-service
+                port:
+                  name: http

@@ -1,0 +1,83 @@
+# evaluation-service (Go, porta 8004).
+#
+# A imagem aparece só pelo nome lógico "evaluation-service": o endereço no ECR e a tag
+# (vX.Y.Z-<sha>) vêm do overlay de cada ambiente — é essa linha que a CI
+# altera para fazer um deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evaluation-service
+  labels:
+    app: evaluation-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  # Sem `replicas`: quem decide o número de pods é o HPA (hpa.yaml). Se o
+  # manifesto fixasse um valor, o ArgoCD e o HPA ficariam brigando.
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: evaluation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: evaluation-service
+    spec:
+      serviceAccountName: evaluation-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: evaluation-service
+          image: evaluation-service
+          ports:
+            - containerPort: 8004
+              name: http
+          env:
+            - name: PORT
+              value: "8004"
+          envFrom:
+            - configMapRef:
+                name: evaluation-service-config
+            - secretRef:
+                name: evaluation-service-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # readOnlyRootFilesystem exige um volume gravável para /tmp.
+        - name: tmp
+          emptyDir: {}

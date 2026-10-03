@@ -1,0 +1,82 @@
+# targeting-service (Python, porta 8003).
+#
+# A imagem aparece só pelo nome lógico "targeting-service": o endereço no ECR e a tag
+# (vX.Y.Z-<sha>) vêm do overlay de cada ambiente — é essa linha que a CI
+# altera para fazer um deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: targeting-service
+  labels:
+    app: targeting-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: targeting-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: targeting-service
+    spec:
+      serviceAccountName: targeting-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: targeting-service
+          image: targeting-service
+          ports:
+            - containerPort: 8003
+              name: http
+          env:
+            - name: PORT
+              value: "8003"
+          envFrom:
+            - configMapRef:
+                name: targeting-service-config
+            - secretRef:
+                name: targeting-service-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 96Mi
+            limits:
+              cpu: 300m
+              memory: 192Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # readOnlyRootFilesystem exige um volume gravável para /tmp.
+        - name: tmp
+          emptyDir: {}

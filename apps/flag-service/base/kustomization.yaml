@@ -1,0 +1,42 @@
+# Base do flag-service: o que é igual em develop, staging e production.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flag-service
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: togglemaster
+      app.kubernetes.io/name: flag-service
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - externalsecret.yaml
+  - db-migration-job.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  # O Job de migração monta estes arquivos em /sql. O sufixo de hash no nome
+  # do ConfigMap muda quando o SQL muda, o que força o Job a pegar a versão nova.
+  - name: flag-service-db-migration
+    files:
+      - db/init.sql
+    options:
+      annotations:
+        argocd.argoproj.io/sync-wave: "-1"
+  # Configuração não sensível comum aos 3 ambientes. O que muda por ambiente
+  # (região, fila) entra no overlay com behavior: merge.
+  - name: flag-service-config
+    literals:
+      - AUTH_SERVICE_URL=http://auth-service.auth-service.svc.cluster.local:8001
+
+images:
+  # psql do Job de migração: espelho no ECR (scripts/mirror-images.sh), sem
+  # depender do Docker Hub no cluster.
+  - name: postgres
+    newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/mirror/library/postgres
+    newTag: 15-alpine

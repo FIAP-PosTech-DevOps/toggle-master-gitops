@@ -1,0 +1,63 @@
+# -----------------------------------------------------------------------------
+# Validação do repositório GitOps
+# -----------------------------------------------------------------------------
+# Tudo o que entra na main é aplicado pelo ArgoCD nos clusters. Este workflow
+# garante, antes do merge, que:
+#   1. nenhum Secret com valor foi commitado (segredos só via ExternalSecret);
+#   2. todo overlay renderiza com o Kustomize;
+#   3. o YAML gerado é válido contra o schema do Kubernetes e dos CRDs
+#      (ExternalSecret, ScaledObject, Application, ApplicationSet...).
+# -----------------------------------------------------------------------------
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  KUBECONFORM_VERSION: v0.7.0
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Nenhum Secret em texto no repositório
+        shell: bash
+        run: |
+          if grep -rlE '^kind:[[:space:]]*Secret[[:space:]]*$' --include='*.yaml' apps platform clusters; then
+            echo "::error::Secret commitado. Use um ExternalSecret apontando para o OpenBao."
+            exit 1
+          fi
+
+      - name: yamllint
+        run: pipx run yamllint --strict .
+
+      - name: Instalar kubeconform
+        shell: bash
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSfL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar xz -C "$HOME/bin" kubeconform
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      # kubectl já vem instalado no runner e tem o Kustomize embutido.
+      - name: Renderizar e validar cada overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          CRD_SCHEMAS='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          for dir in apps/*/overlays/* platform clusters/*; do
+            echo "::group::$dir"
+            kubectl kustomize "$dir" > rendered.yaml
+            kubeconform -strict -summary \
+              -schema-location default \
+              -schema-location "$CRD_SCHEMAS" \
+              rendered.yaml
+            echo "::endgroup::"
+          done

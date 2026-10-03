@@ -1,0 +1,24 @@
+# Application da plataforma (ClusterSecretStore do OpenBao). Onda -1: sobe
+# antes dos serviços, que dependem dela para ter os Secrets.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: togglemaster
+  source:
+    repoURL: https://github.com/FIAP-PosTech-DevOps/toggle-master-gitops.git
+    targetRevision: main
+    path: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-secrets
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
