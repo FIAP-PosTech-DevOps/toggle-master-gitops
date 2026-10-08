@@ -59,8 +59,8 @@ images:
 | Evento no repositório do serviço | Quem altera | Overlay |
 |---|---|---|
 | push em `release/vX.Y.Z` | CI (build + push da imagem) | `develop` |
-| botão "Promover p/ staging" (tag `vX.Y.Z-rc.N`) | CI, copiando a tag de develop | `staging` |
-| botão "Promover p/ produção" (tag `vX.Y.Z`) | CI, copiando a tag de staging | `production` |
+| botão `promover-staging` (tag `vX.Y.Z-rc.N`) | CI, com a mesma imagem de develop (re-scan do Trivy) | `staging` |
+| botão `promover-producao` (tag `vX.Y.Z`) | CI, com a mesma imagem de staging, após aprovação | `production` |
 
 A imagem é construída **uma vez**. Promover é copiar o mesmo `newTag` para o overlay seguinte.
 
