@@ -52,10 +52,19 @@ jobs:
         run: |
           set -euo pipefail
           CRD_SCHEMAS='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          # ClusterSecretStore fica fora da validação de schema: o schema
+          # publicado no CRDs-catalog (external-secrets.io/v1) está inválido
+          # desde a versão do ESO com o provider "crd" (tem um
+          # "additionalProperties: false" dentro de "properties"), e o
+          # kubeconform responde "could not find schema". É só 1 recurso
+          # (platform/clustersecretstore-openbao.yaml); os ExternalSecret
+          # continuam validados. Remover o -skip quando o catálogo corrigir.
+          SKIP_KINDS='ClusterSecretStore'
           for dir in apps/*/overlays/* platform clusters/*; do
             echo "::group::$dir"
             kubectl kustomize "$dir" > rendered.yaml
             kubeconform -strict -summary \
+              -skip "$SKIP_KINDS" \
               -schema-location default \
               -schema-location "$CRD_SCHEMAS" \
               rendered.yaml
