@@ -6,9 +6,10 @@ resources:
   - ../../base
 
 # A linha newTag é a "versão implantada" deste serviço neste ambiente.
-# Quem altera: a CI do analytics-service (push em release/* -> develop; botões de
-# promoção -> staging e production). Rollback = git revert do commit que a
-# alterou.
+# Quem altera: a CI do analytics-service, quando alguém aperta "Run workflow"
+# no ci.yml escolhendo uma branch qualquer (imagem dev-<branch>-<sha>).
+# O develop é compartilhado: vale o último deploy.
+# Rollback = git revert do commit que a alterou.
 images:
   - name: analytics-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/analytics-service
