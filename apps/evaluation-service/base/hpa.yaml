@@ -5,6 +5,11 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: evaluation-service
+  # Onda 2, depois do Deployment (onda 1). Na onda padrão (0) o ArgoCD
+  # espera este recurso ficar saudável antes de criar o Deployment, mas ele
+  # só fica saudável quando o Deployment existe: o sync trava para sempre.
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
