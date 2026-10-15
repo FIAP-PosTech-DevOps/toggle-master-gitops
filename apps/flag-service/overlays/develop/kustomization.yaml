@@ -1,10 +1,8 @@
 # flag-service em develop (us-east-2).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   - ../../base
-
 # A linha newTag é a "versão implantada" deste serviço neste ambiente.
 # Quem altera: a CI do flag-service, quando alguém aperta "Run workflow"
 # no ci.yml escolhendo uma branch qualquer (imagem dev-<branch>-<sha>).
@@ -13,4 +11,4 @@ resources:
 images:
   - name: flag-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/flag-service
-    newTag: v0.0.0
+    newTag: dev-main-970c7ae
