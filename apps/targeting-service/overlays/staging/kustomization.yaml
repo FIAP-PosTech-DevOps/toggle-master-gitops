@@ -1,4 +1,4 @@
-# targeting-service em staging (us-west-2).
+# targeting-service em staging (us-east-1).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -6,9 +6,9 @@ resources:
   - ../../base
 
 # A linha newTag é a "versão implantada" deste serviço neste ambiente.
-# Quem altera: a CI do targeting-service (push em release/* -> develop; botões de
-# promoção -> staging e production). Rollback = git revert do commit que a
-# alterou.
+# Quem altera: a CI do targeting-service, a cada push em release/vX.Y.Z
+# (imagem vX.Y.Z-<sha>).
+# Rollback = git revert do commit que a alterou.
 images:
   - name: targeting-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/targeting-service

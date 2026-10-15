@@ -53,16 +53,18 @@ A única linha que muda num deploy é o `newTag` em `apps/<serviço>/overlays/<a
 images:
   - name: flag-service
     newName: <conta>.dkr.ecr.us-east-1.amazonaws.com/togglemaster/flag-service
-    newTag: v1.0.1-a1b2c3d    # <- a CI altera esta linha
+    newTag: v1.1.0-a1b2c3d    # <- a CI altera esta linha
 ```
 
-| Evento no repositório do serviço | Quem altera | Overlay |
-|---|---|---|
-| push em `release/vX.Y.Z` | CI (build + push da imagem) | `develop` |
-| botão `promover-staging` (tag `vX.Y.Z-rc.N`) | CI, com a mesma imagem de develop (re-scan do Trivy) | `staging` |
-| botão `promover-producao` (tag `vX.Y.Z`) | CI, com a mesma imagem de staging, após aprovação | `production` |
+| Evento no repositório do serviço | Quem altera | Overlay | Imagem |
+|---|---|---|---|
+| botão **Run workflow** do `ci.yml`, com qualquer branch | CI (build + push da imagem) | `develop` | `dev-<branch>-<sha>` |
+| push em `release/vX.Y.Z` (merge de um PR no pacote) | CI (build + push da imagem) | `staging` | `vX.Y.Z-<sha>` |
+| merge do PR `release/vX.Y.Z` → `main` | CI, após aprovação, com a **mesma imagem de staging** (re-scan do Trivy) | `production` | `vX.Y.Z-<sha>` |
 
-A imagem é construída **uma vez**. Promover é copiar o mesmo `newTag` para o overlay seguinte.
+A imagem de uma versão é construída **uma vez**, na release. Ir para produção é copiar o mesmo `newTag` de staging para o overlay de production; a pipeline recusa o merge se a imagem não for a que está em staging.
+
+O **develop é compartilhado**: cada deploy substitui o anterior. O commit `deploy(<serviço>): develop ... -> dev-<branch>-<sha>` mostra qual branch está lá.
 
 **Rollback:** `git revert` do commit que alterou o `newTag`. O ArgoCD volta a imagem anterior no próximo ciclo (até 60 s).
 
