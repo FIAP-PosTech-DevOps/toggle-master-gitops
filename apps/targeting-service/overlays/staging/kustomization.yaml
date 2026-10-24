@@ -10,4 +10,4 @@ resources:
 images:
   - name: targeting-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/targeting-service
-    newTag: v1.0.1-3ab2225
+    newTag: v1.0.1-54874a7
