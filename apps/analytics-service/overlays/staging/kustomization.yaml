@@ -10,7 +10,7 @@ resources:
 images:
   - name: analytics-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/analytics-service
-    newTag: v1.0.1-8b67b8d
+    newTag: v1.0.1-0a4bb8c
 configMapGenerator:
   - name: analytics-service-config
     behavior: merge
