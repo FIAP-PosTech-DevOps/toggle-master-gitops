@@ -1,10 +1,8 @@
 # auth-service em production (us-east-1).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   - ../../base
-
 # A linha newTag é a "versão implantada" deste serviço neste ambiente.
 # Quem altera: a CI do auth-service, no merge do PR release/vX.Y.Z -> main,
 # depois da aprovação. É a mesma imagem que está em staging, sem novo build.
@@ -12,8 +10,7 @@ resources:
 images:
   - name: auth-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/auth-service
-    newTag: v0.0.0
-
+    newTag: v1.0.1-235853c
 patches:
   # Produção com 2 réplicas: um pod pode cair (deploy, nó) sem indisponibilidade.
   - patch: |-
