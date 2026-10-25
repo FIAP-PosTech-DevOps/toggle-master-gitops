@@ -11,7 +11,7 @@ resources:
 images:
   - name: evaluation-service
     newName: 413816840261.dkr.ecr.us-east-1.amazonaws.com/togglemaster/evaluation-service
-    newTag: dev-main-a618256
+    newTag: dev-feature-demo-video-de4b996
 configMapGenerator:
   - name: evaluation-service-config
     behavior: merge
